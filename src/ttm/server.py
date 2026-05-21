@@ -6,6 +6,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import UserMessage
 
 from ttm.config import Settings, load_settings
+from ttm.models import TaskStatus
 from ttm.repository import TaskRepository
 from ttm.service import TaskService
 
@@ -170,7 +171,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         project: str,
         summary: str,
         description: str | None = None,
-        status: str = "todo",
+        status: TaskStatus = "todo",
         agent_session: str | None = None,
     ) -> dict[str, object]:
         """Create a task in a project."""
@@ -193,7 +194,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         project: str | None = None,
         summary: str | None = None,
         description: str | None = None,
-        status: str | None = None,
+        status: TaskStatus | None = None,
         agent_session: str | None = None,
     ) -> dict[str, object]:
         """Update one or more task fields."""
@@ -209,7 +210,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     @server.tool()
     def list_tasks(
         project: str,
-        status: str | None = None,
+        status: TaskStatus | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, object]:
@@ -220,7 +221,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     def search_tasks(
         project: str,
         query: str,
-        status: str | None = None,
+        status: TaskStatus | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, object]:

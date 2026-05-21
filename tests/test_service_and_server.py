@@ -57,6 +57,16 @@ def test_create_server_exposes_expected_tools(tmp_path: Path) -> None:
         "delete_task",
     }
 
+    add_task_tool = next(tool for tool in manager.list_tools() if tool.name == "add_task")
+    add_task_status = add_task_tool.parameters["properties"]["status"]
+    assert add_task_status["enum"] == ["todo", "doing", "done"]
+    assert add_task_status["default"] == "todo"
+
+    update_task_tool = next(tool for tool in manager.list_tools() if tool.name == "update_task")
+    update_task_status = update_task_tool.parameters["properties"]["status"]
+    assert update_task_status["anyOf"][0]["enum"] == ["todo", "doing", "done"]
+    assert update_task_status["anyOf"][1]["type"] == "null"
+
 
 def test_create_server_exposes_docs_and_prompts(tmp_path: Path) -> None:
     server = create_server(Settings(db_path=tmp_path / "ttm.db"))

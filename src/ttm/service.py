@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ttm.models import Task, VALID_STATUSES
+from ttm.models import Task, TaskStatus, VALID_STATUSES
 from ttm.repository import TaskRepository
 
 
@@ -14,7 +14,7 @@ class TaskService:
         project: str,
         summary: str,
         description: str | None = None,
-        status: str = "todo",
+        status: TaskStatus = "todo",
         agent_session: str | None = None,
     ) -> dict[str, object]:
         self._validate_project(project)
@@ -39,7 +39,7 @@ class TaskService:
         project: str | None = None,
         summary: str | None = None,
         description: str | None = None,
-        status: str | None = None,
+        status: TaskStatus | None = None,
         agent_session: str | None = None,
     ) -> dict[str, object]:
         if project is not None:
@@ -64,7 +64,7 @@ class TaskService:
         self,
         *,
         project: str,
-        status: str | None = None,
+        status: TaskStatus | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, object]:
@@ -85,7 +85,7 @@ class TaskService:
         *,
         project: str,
         query: str,
-        status: str | None = None,
+        status: TaskStatus | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, object]:
