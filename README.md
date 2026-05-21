@@ -34,7 +34,7 @@ For direct GitHub usage in an MCP client, use a `uvx`/`uv tool run` command that
   "mcpServers": {
     "ttm": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/<you>/ttm", "ttm"]
+      "args": ["--from", "git+https://github.com/vaeryn-uk/ttm", "ttm"]
     }
   }
 }
