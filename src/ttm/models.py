@@ -10,7 +10,7 @@ VALID_STATUSES: set[str] = {"todo", "doing", "done"}
 @dataclass(slots=True)
 class Task:
     task_id: str
-    project: str
+    workspace: str
     summary: str
     description: str | None
     status: TaskStatus

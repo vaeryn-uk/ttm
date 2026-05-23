@@ -6,7 +6,7 @@
 
 - Lets an agent capture, organize, and track tasks without leaving its MCP tool workflow
 - Stores structured tasks locally on your device so they persist across agent sessions
-- Supports project-scoped task lists so an agent can keep work tied to the current repo or workspace
+- Supports workspace-scoped task lists so an agent can keep work tied to the current repo or working directory
 
 ## How To Use It
 
@@ -23,10 +23,27 @@ To use it directly from GitHub in an MCP client, use a `uvx` or `uv tool run` co
 }
 ```
 
-Once connected, use the MCP tools to create, update, list, and search tasks within an explicit `project`.
-`project` is an opaque string with no required path validation or platform-specific format.
-It is an internal scoping key between the agent and TTM, not something that normally needs to be exposed to the end user.
-In practice, agents should usually use their current working directory or repository identifier, not an invented taxonomy label.
+After connecting it, use it through your agent.
+
+Typical flow:
+
+1. Open your agent in a repo or working directory.
+2. Ask it to list your open tasks.
+3. Ask it to add tasks, start tasks, and close tasks.
+
+Examples:
+
+- "ttm what next?"
+- "ttm add task to document the CLI flags."
+- "Start work on TTM#12."
+- "Mark TTM#12 complete."
+
+**Note: prefixing task requests with `ttm` can help your agent route them to the task tool more consistently.**
+
+What to expect:
+
+- Tasks are scoped to the current repository or working directory.
+- If you switch to another project, you get that project's tasks instead.
 
 ## Upgrading
 
@@ -45,7 +62,7 @@ Once packages have been installed, `Ctrl`+`C` to stop the MCP server that was st
 Create a task.
 
 Inputs:
-- `project` required string: opaque internal scoping string, usually the current working directory or repository identifier
+- `workspace` required string: usually the current repository or working directory
 - `summary` required string
 - `description` optional string
 - `status` optional `todo|doing|done`, defaults to `todo`
@@ -58,7 +75,7 @@ Fetch one task by `task_id`.
 ### `update_task`
 
 Update any subset of:
-- `project`: opaque internal scoping string, usually the current working directory or repository identifier
+- `workspace`: usually the current repository or working directory
 - `summary`
 - `description`
 - `status`
@@ -66,20 +83,20 @@ Update any subset of:
 
 ### `list_tasks`
 
-List tasks for a `project`.
+List tasks for a `workspace`.
 
 Inputs:
-- `project` required string: opaque internal scoping string, usually the current working directory or repository identifier
+- `workspace` required string: usually the current repository or working directory
 - `status` optional `todo|doing|done`
 - `limit` optional integer, default `50`
 - `offset` optional integer, default `0`
 
 ### `search_tasks`
 
-Search `summary` and `description` within a `project`.
+Search `summary` and `description` within a `workspace`.
 
 Inputs:
-- `project` required string: opaque internal scoping string, usually the current working directory or repository identifier
+- `workspace` required string: usually the current repository or working directory
 - `query` required string
 - `status` optional `todo|doing|done`
 - `limit` optional integer, default `50`

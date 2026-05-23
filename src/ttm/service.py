@@ -11,17 +11,17 @@ class TaskService:
     def add_task(
         self,
         *,
-        project: str,
+        workspace: str,
         summary: str,
         description: str | None = None,
         status: TaskStatus = "todo",
         agent_session: str | None = None,
     ) -> dict[str, object]:
-        self._validate_project(project)
+        self._validate_workspace(workspace)
         self._validate_summary(summary)
         self._validate_optional_status(status)
         task = self.repository.create_task(
-            project=project.strip(),
+            workspace=workspace.strip(),
             summary=summary.strip(),
             description=description,
             status=status,
@@ -36,15 +36,15 @@ class TaskService:
         self,
         task_id: str,
         *,
-        project: str | None = None,
+        workspace: str | None = None,
         summary: str | None = None,
         description: str | None = None,
         status: TaskStatus | None = None,
         agent_session: str | None = None,
     ) -> dict[str, object]:
-        if project is not None:
-            self._validate_project(project)
-            project = project.strip()
+        if workspace is not None:
+            self._validate_workspace(workspace)
+            workspace = workspace.strip()
         if summary is not None:
             self._validate_summary(summary)
             summary = summary.strip()
@@ -52,7 +52,7 @@ class TaskService:
             self._validate_optional_status(status)
         task = self.repository.update_task(
             task_id,
-            project=project,
+            workspace=workspace,
             summary=summary,
             description=description,
             status=status,
@@ -63,17 +63,17 @@ class TaskService:
     def list_tasks(
         self,
         *,
-        project: str,
+        workspace: str,
         status: TaskStatus | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, object]:
-        self._validate_project(project)
+        self._validate_workspace(workspace)
         self._validate_paging(limit=limit, offset=offset)
         if status is not None:
             self._validate_optional_status(status)
         tasks = self.repository.list_tasks(
-            project=project.strip(),
+            workspace=workspace.strip(),
             status=status,
             limit=limit,
             offset=offset,
@@ -83,20 +83,20 @@ class TaskService:
     def search_tasks(
         self,
         *,
-        project: str,
+        workspace: str,
         query: str,
         status: TaskStatus | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, object]:
-        self._validate_project(project)
+        self._validate_workspace(workspace)
         if not query.strip():
             raise ValueError("query is required")
         self._validate_paging(limit=limit, offset=offset)
         if status is not None:
             self._validate_optional_status(status)
         tasks = self.repository.search_tasks(
-            project=project.strip(),
+            workspace=workspace.strip(),
             query=query.strip(),
             status=status,
             limit=limit,
@@ -121,9 +121,9 @@ class TaskService:
         }
 
     @staticmethod
-    def _validate_project(project: str) -> None:
-        if not project.strip():
-            raise ValueError("project is required")
+    def _validate_workspace(workspace: str) -> None:
+        if not workspace.strip():
+            raise ValueError("workspace is required")
 
     @staticmethod
     def _validate_summary(summary: str) -> None:

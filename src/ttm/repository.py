@@ -35,12 +35,13 @@ class TaskRepository:
 
     def _init_db(self) -> None:
         with self.connect() as connection:
+            self._migrate_workspace_column(connection)
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     task_id TEXT UNIQUE,
-                    project TEXT NOT NULL,
+                    workspace TEXT NOT NULL,
                     summary TEXT NOT NULL,
                     description TEXT,
                     status TEXT NOT NULL,
@@ -52,13 +53,22 @@ class TaskRepository:
                 """
             )
             connection.execute(
-                "CREATE INDEX IF NOT EXISTS idx_tasks_project_status ON tasks(project, status)"
+                "CREATE INDEX IF NOT EXISTS idx_tasks_workspace_status ON tasks(workspace, status)"
             )
+
+    def _migrate_workspace_column(self, connection: sqlite3.Connection) -> None:
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(tasks)").fetchall()
+        }
+        if "project" in columns and "workspace" not in columns:
+            connection.execute("ALTER TABLE tasks RENAME COLUMN project TO workspace")
+            connection.execute("DROP INDEX IF EXISTS idx_tasks_project_status")
 
     def create_task(
         self,
         *,
-        project: str,
+        workspace: str,
         summary: str,
         description: str | None,
         status: str,
@@ -69,10 +79,10 @@ class TaskRepository:
         with self.connect() as connection:
             cursor = connection.execute(
                 """
-                INSERT INTO tasks (project, summary, description, status, agent_session, created_at, updated_at)
+                INSERT INTO tasks (workspace, summary, description, status, agent_session, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (project, summary, description, status, agent_session, timestamp, timestamp),
+                (workspace, summary, description, status, agent_session, timestamp, timestamp),
             )
             row_id = cursor.lastrowid
             task_id = f"TTM#{row_id}"
@@ -100,14 +110,14 @@ class TaskRepository:
         self,
         task_id: str,
         *,
-        project: str | None = None,
+        workspace: str | None = None,
         summary: str | None = None,
         description: str | None = None,
         status: str | None = None,
         agent_session: str | None = None,
     ) -> Task:
         current = self.get_task(task_id)
-        next_project = current.project if project is None else project
+        next_workspace = current.workspace if workspace is None else workspace
         next_summary = current.summary if summary is None else summary
         next_description = current.description if description is None else description
         next_status = current.status if status is None else status
@@ -118,11 +128,11 @@ class TaskRepository:
             connection.execute(
                 """
                 UPDATE tasks
-                SET project = ?, summary = ?, description = ?, status = ?, agent_session = ?, updated_at = ?
+                SET workspace = ?, summary = ?, description = ?, status = ?, agent_session = ?, updated_at = ?
                 WHERE task_id = ?
                 """,
                 (
-                    next_project,
+                    next_workspace,
                     next_summary,
                     next_description,
                     next_status,
@@ -136,7 +146,7 @@ class TaskRepository:
     def list_tasks(
         self,
         *,
-        project: str,
+        workspace: str,
         status: str | None = None,
         limit: int = 50,
         offset: int = 0,
@@ -146,19 +156,19 @@ class TaskRepository:
         if status is None:
             query = """
                 SELECT * FROM tasks
-                WHERE project = ?
+                WHERE workspace = ?
                 ORDER BY id DESC
                 LIMIT ? OFFSET ?
             """
-            params: tuple[object, ...] = (project, limit, offset)
+            params: tuple[object, ...] = (workspace, limit, offset)
         else:
             query = """
                 SELECT * FROM tasks
-                WHERE project = ? AND status = ?
+                WHERE workspace = ? AND status = ?
                 ORDER BY id DESC
                 LIMIT ? OFFSET ?
             """
-            params = (project, status, limit, offset)
+            params = (workspace, status, limit, offset)
         with self.connect() as connection:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_task(row) for row in rows]
@@ -166,7 +176,7 @@ class TaskRepository:
     def search_tasks(
         self,
         *,
-        project: str,
+        workspace: str,
         query: str,
         status: str | None = None,
         limit: int = 50,
@@ -178,7 +188,7 @@ class TaskRepository:
         if status is None:
             sql = """
                 SELECT * FROM tasks
-                WHERE project = ?
+                WHERE workspace = ?
                   AND (
                     lower(summary) LIKE ?
                     OR lower(COALESCE(description, '')) LIKE ?
@@ -186,11 +196,11 @@ class TaskRepository:
                 ORDER BY id DESC
                 LIMIT ? OFFSET ?
             """
-            params: tuple[object, ...] = (project, search_term, search_term, limit, offset)
+            params: tuple[object, ...] = (workspace, search_term, search_term, limit, offset)
         else:
             sql = """
                 SELECT * FROM tasks
-                WHERE project = ?
+                WHERE workspace = ?
                   AND status = ?
                   AND (
                     lower(summary) LIKE ?
@@ -199,7 +209,7 @@ class TaskRepository:
                 ORDER BY id DESC
                 LIMIT ? OFFSET ?
             """
-            params = (project, status, search_term, search_term, limit, offset)
+            params = (workspace, status, search_term, search_term, limit, offset)
         with self.connect() as connection:
             rows = connection.execute(sql, params).fetchall()
         return [self._row_to_task(row) for row in rows]
@@ -224,7 +234,7 @@ class TaskRepository:
             raise TaskNotFoundError("Task row missing")
         return Task(
             task_id=row["task_id"],
-            project=row["project"],
+            workspace=row["workspace"],
             summary=row["summary"],
             description=row["description"],
             status=row["status"],

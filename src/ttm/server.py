@@ -12,32 +12,32 @@ from ttm.service import TaskService
 
 INSTRUCTIONS = (
     "TTM manages structured todo tasks. "
-    "`project` is an opaque string passed by the caller for create, list, and search. "
-    "`project` is an internal scoping key between the agent and TTM, not a user-facing field to present back to the user unless directly relevant. "
-    "In practice it should usually be the directory or repository identifier the agent is operating in. "
-    "Do not invent taxonomy, labels, teams, initiatives, or other arbitrary categories for `project`. "
+    "`workspace` should be the current repository or working directory the agent is operating in. "
+    "Infer `workspace` from the current work context instead of asking the user for it unless needed. "
+    "Do not invent labels like `frontend`, `q3`, or `team-a` for `workspace`. "
+    "If the user provides a full task ID like `TTM#7`, use that exact task ID for `get_task`, `update_task`, or `delete_task` rather than converting it into a scoped workspace lookup. "
     "Use statuses todo, doing, and done. "
     "Read the ttm://docs/* resources for usage details and workflows."
 )
 
 USAGE_DOC = """# TTM Usage
 
-TTM manages project-scoped tasks over MCP.
+TTM manages workspace-scoped tasks over MCP.
 
 ## Core rules
 
-- Treat `project` as an opaque caller-provided string with no required path validation or platform-specific format.
-- Treat `project` as an internal scoping key between the agent and TTM, not user-facing output by default.
-- In practice, set `project` to the directory or repository identifier the agent is operating in.
-- Do not use `project` for arbitrary taxonomy such as teams, themes, initiatives, labels, or workflow buckets.
+- Use the current repository or working directory as `workspace`.
+- Infer `workspace` from the current work context instead of asking the user for it unless needed.
+- Do not use invented labels like `frontend`, `q3`, or `team-a` as `workspace`.
 - Use `summary` for the short task title.
 - Use `description` for optional markdown details.
 - Use `agent_session` when you want to record which agent run created or updated a task.
 - Use only `todo`, `doing`, or `done` as statuses.
+- If the user provides a full task ID like `TTM#7`, call `get_task`, `update_task`, or `delete_task` with that exact ID instead of turning it into a workspace-scoped search.
 
 ## Recommended workflow
 
-1. Call `list_tasks` for the current project before creating duplicates.
+1. Call `list_tasks` for the current workspace before creating duplicates.
 2. Call `add_task` with a concise summary and optional markdown description.
 3. Move active work to `doing` with `update_task`.
 4. Mark finished work as `done`.
@@ -49,7 +49,7 @@ TASK_MODEL_DOC = """# TTM Task Model
 Each task stores:
 
 - `task_id`: stable public ID like `TTM#12`
-- `project`: opaque internal scoping string, usually a directory or repository identifier for the working context
+- `workspace`: usually the current repository or working directory
 - `summary`: required short title
 - `description`: optional markdown body
 - `status`: `todo`, `doing`, or `done`
@@ -59,7 +59,7 @@ Each task stores:
 
 Deleting a task removes it. There is no archive or restore behavior.
 
-Never use `project` for invented categorization like `frontend`, `documentation`, `team-a`, or `q3-priority` when those are not the actual working-context identifier.
+Never use `workspace` for invented categorization like `frontend`, `documentation`, `team-a`, or `q3-priority` when it should refer to the current repository or working directory.
 """
 
 EXAMPLES_DOC = """# TTM Examples
@@ -67,7 +67,7 @@ EXAMPLES_DOC = """# TTM Examples
 ## Create a task
 
 Use `add_task` with:
-- `project`: `/path/to/repo`
+- `workspace`: `/path/to/repo`
 - `summary`: `Ship MCP docs`
 - `description`: `Document resources and prompts`
 
@@ -86,7 +86,7 @@ Use `update_task` with:
 ## Find existing tasks
 
 Use `search_tasks` with:
-- `project`: `/path/to/repo`
+- `workspace`: `/path/to/repo`
 - `query`: `docs`
 """
 
@@ -131,13 +131,13 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         return EXAMPLES_DOC
 
     @server.prompt(
-        title="Create Project Task Plan",
-        description="Guide the assistant to break down work into TTM tasks for one project.",
+        title="Create Workspace Task Plan",
+        description="Guide the assistant to break down work into TTM tasks for one workspace.",
     )
-    def create_project_task_plan(project: str, goal: str) -> list[UserMessage]:
+    def create_workspace_task_plan(workspace: str, goal: str) -> list[UserMessage]:
         return [
             UserMessage(
-                f"Use TTM to break down work for project `{project}`.\n\n"
+                f"Use TTM to break down work for workspace `{workspace}`.\n\n"
                 f"Goal: {goal}\n\n"
                 "First inspect existing tasks with list_tasks or search_tasks to avoid duplicates. "
                 "Then create a small set of concrete tasks with concise summaries and markdown descriptions. "
@@ -147,12 +147,12 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @server.prompt(
         title="Review Open Tasks",
-        description="Guide the assistant to review current non-complete work in a project.",
+        description="Guide the assistant to review current non-complete work in a workspace.",
     )
-    def review_open_tasks(project: str) -> list[UserMessage]:
+    def review_open_tasks(workspace: str) -> list[UserMessage]:
         return [
             UserMessage(
-                f"Review active work for project `{project}` using TTM.\n\n"
+                f"Review active work for workspace `{workspace}` using TTM.\n\n"
                 "List `todo` and `doing` tasks, summarize duplicates or stale items, "
                 "and propose status updates or cleanup actions before making changes."
             )
@@ -162,11 +162,11 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         title="Close Completed Work",
         description="Guide the assistant to mark finished tasks as done after verifying completion.",
     )
-    def close_completed_work(project: str, completion_notes: str | None = None) -> list[UserMessage]:
+    def close_completed_work(workspace: str, completion_notes: str | None = None) -> list[UserMessage]:
         notes = completion_notes or "No extra completion notes were provided."
         return [
             UserMessage(
-                f"Close completed work for project `{project}` using TTM.\n\n"
+                f"Close completed work for workspace `{workspace}` using TTM.\n\n"
                 f"Notes: {notes}\n\n"
                 "Find tasks that appear complete, verify the work from available context, "
                 "and update only the confirmed tasks to `done`. "
@@ -176,15 +176,15 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @server.tool()
     def add_task(
-        project: str,
+        workspace: str,
         summary: str,
         description: str | None = None,
         status: TaskStatus = "todo",
         agent_session: str | None = None,
     ) -> dict[str, object]:
-        """Create a task in a project."""
+        """Create a task in a workspace."""
         return service.add_task(
-            project=project,
+            workspace=workspace,
             summary=summary,
             description=description,
             status=status,
@@ -199,7 +199,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     @server.tool()
     def update_task(
         task_id: str,
-        project: str | None = None,
+        workspace: str | None = None,
         summary: str | None = None,
         description: str | None = None,
         status: TaskStatus | None = None,
@@ -208,7 +208,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         """Update one or more task fields."""
         return service.update_task(
             task_id,
-            project=project,
+            workspace=workspace,
             summary=summary,
             description=description,
             status=status,
@@ -217,25 +217,25 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @server.tool()
     def list_tasks(
-        project: str,
+        workspace: str,
         status: TaskStatus | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, object]:
-        """List tasks for a project."""
-        return service.list_tasks(project=project, status=status, limit=limit, offset=offset)
+        """List tasks for a workspace."""
+        return service.list_tasks(workspace=workspace, status=status, limit=limit, offset=offset)
 
     @server.tool()
     def search_tasks(
-        project: str,
+        workspace: str,
         query: str,
         status: TaskStatus | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, object]:
-        """Search tasks within a project."""
+        """Search tasks within a workspace."""
         return service.search_tasks(
-            project=project,
+            workspace=workspace,
             query=query,
             status=status,
             limit=limit,
