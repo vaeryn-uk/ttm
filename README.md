@@ -28,6 +28,16 @@ Once connected, use the MCP tools to create, update, list, and search tasks with
 It is an internal scoping key between the agent and TTM, not something that normally needs to be exposed to the end user.
 In practice, agents should usually use their current working directory or repository identifier, not an invented taxonomy label.
 
+## Upgrading
+
+To get the latest version, run the following to refresh the cached copy that `uvx` will run:
+
+```
+uvx --refresh --from git+https://github.com/vaeryn-uk/ttm ttm
+```
+
+Once packages have been installed, `Ctrl`+`C` to stop the MCP server that was started. Restarting your agent will now have the latest version of `ttm`.
+
 ## Core Tools
 
 ### `add_task`
