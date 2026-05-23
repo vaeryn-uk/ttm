@@ -92,7 +92,10 @@ def test_usage_doc_and_prompt_render(tmp_path: Path) -> None:
     doc = asyncio.run(server.read_resource("ttm://docs/usage"))
     assert len(doc) == 1
     assert doc[0].mime_type == "text/markdown"
-    assert "Always pass `project`" in doc[0].content
+    assert "opaque caller-provided string" in doc[0].content
+    assert "internal scoping key between the agent and TTM" in doc[0].content
+    assert "directory or repository identifier" in doc[0].content
+    assert "Do not use `project` for arbitrary taxonomy" in doc[0].content
 
     messages = asyncio.run(
         server._prompt_manager.render_prompt(  # noqa: SLF001 - targeted smoke test
@@ -102,3 +105,18 @@ def test_usage_doc_and_prompt_render(tmp_path: Path) -> None:
     )
     assert len(messages) == 1
     assert "Ship docs" in messages[0].content.text
+
+
+def test_server_instructions_and_model_doc_define_project_usage(tmp_path: Path) -> None:
+    server = create_server(Settings(db_path=tmp_path / "ttm.db"))
+
+    assert "`project` is an opaque string" in server.instructions
+    assert "internal scoping key between the agent and TTM" in server.instructions
+    assert "should usually be the directory or repository identifier" in server.instructions
+    assert "Do not invent taxonomy" in server.instructions
+
+    doc = asyncio.run(server.read_resource("ttm://docs/task-model"))
+    assert len(doc) == 1
+    assert "opaque internal scoping string" in doc[0].content
+    assert "usually a directory or repository identifier" in doc[0].content
+    assert "Never use `project` for invented categorization" in doc[0].content

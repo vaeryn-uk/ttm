@@ -12,7 +12,10 @@ from ttm.service import TaskService
 
 INSTRUCTIONS = (
     "TTM manages structured todo tasks. "
-    "Projects are explicit strings passed by the caller for create, list, and search. "
+    "`project` is an opaque string passed by the caller for create, list, and search. "
+    "`project` is an internal scoping key between the agent and TTM, not a user-facing field to present back to the user unless directly relevant. "
+    "In practice it should usually be the directory or repository identifier the agent is operating in. "
+    "Do not invent taxonomy, labels, teams, initiatives, or other arbitrary categories for `project`. "
     "Use statuses todo, doing, and done. "
     "Read the ttm://docs/* resources for usage details and workflows."
 )
@@ -23,7 +26,10 @@ TTM manages project-scoped tasks over MCP.
 
 ## Core rules
 
-- Always pass `project` when creating, listing, or searching tasks.
+- Treat `project` as an opaque caller-provided string with no required path validation or platform-specific format.
+- Treat `project` as an internal scoping key between the agent and TTM, not user-facing output by default.
+- In practice, set `project` to the directory or repository identifier the agent is operating in.
+- Do not use `project` for arbitrary taxonomy such as teams, themes, initiatives, labels, or workflow buckets.
 - Use `summary` for the short task title.
 - Use `description` for optional markdown details.
 - Use `agent_session` when you want to record which agent run created or updated a task.
@@ -43,7 +49,7 @@ TASK_MODEL_DOC = """# TTM Task Model
 Each task stores:
 
 - `task_id`: stable public ID like `TTM#12`
-- `project`: opaque project string, typically a repo or workspace path
+- `project`: opaque internal scoping string, usually a directory or repository identifier for the working context
 - `summary`: required short title
 - `description`: optional markdown body
 - `status`: `todo`, `doing`, or `done`
@@ -52,6 +58,8 @@ Each task stores:
 - `updated_at`: last update timestamp in UTC
 
 Deleting a task removes it. There is no archive or restore behavior.
+
+Never use `project` for invented categorization like `frontend`, `documentation`, `team-a`, or `q3-priority` when those are not the actual working-context identifier.
 """
 
 EXAMPLES_DOC = """# TTM Examples
